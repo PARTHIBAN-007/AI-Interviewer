@@ -3,7 +3,8 @@ from fastapi.responses import JSONResponse
 import io
 import whisper
 from pydub import AudioSegment
-
+from pydantic import BaseModel
+from typing import List
 app = FastAPI()
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -16,6 +17,31 @@ app.add_middleware(
 )
 
 model = whisper.load_model("base.en")  
+class User_preferences(BaseModel):
+    role : str
+    topics : list[str]
+@app.post("/question_configure")
+async def config_question(data : User_preferences):
+    role = data.role
+    topics = data.topics
+    print(role)
+    return {"role": User_preferences.role, "topics": User_preferences.topics}
+
+from llm import LLM_interviewer
+
+class UserPreferences(BaseModel):
+    role: str
+    topics: List[str]
+
+# Create an endpoint to receive the JSON data
+@app.post("/config_question")
+async def config_question(user_preferences: UserPreferences):
+    # Access the parsed JSON data
+    role = user_preferences.role
+    topics = user_preferences.topics
+    llm = LLM_interviewer(role,topics)
+    print(role,topics)
+    return {"role": llm.role, "topics": llm.topics,"p":llm.prompt}
 
 @app.post("/upload-audio/")
 async def upload_audio(file: UploadFile = File(...)):
