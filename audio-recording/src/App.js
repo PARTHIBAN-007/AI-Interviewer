@@ -1,9 +1,11 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 function App() {
   const [selectedTopics, setSelectedTopics] = useState([]);
   const predefinedRole = "Machine Learning Engineer";
+  const navigate = useNavigate();
 
   const availableTopics = [
     "Linear Regression",
@@ -13,7 +15,7 @@ function App() {
     "Transformers",
     "Random Forest",
     "Decision Tree",
-    "Deep Learing",
+    "Deep Learning",
     "Statistics",
     "Regularization",
     "Neural Networks",
@@ -24,28 +26,22 @@ function App() {
 
   const handleTopicClick = (topic) => {
     setSelectedTopics((prevTopics) =>
-      prevTopics.includes(topic)
-        ? prevTopics.filter((t) => t !== topic) // Deselect topic
-        : [...prevTopics, topic] // Select topic
+      prevTopics.includes(topic) ? prevTopics.filter((t) => t !== topic) : [...prevTopics, topic]
     );
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const data = {
-      role: predefinedRole,
-      topics: selectedTopics,
-    };
+    const data = { role: predefinedRole, topics: selectedTopics };
 
     try {
-      // Sending the data to the backend endpoint '/config_question'
-      const response = await axios.post("http://127.0.0.1:8000/config-question/", data, {
-        headers: {
-          "Content-Type": "application/json",
-        },
+      const response = await axios.post("http://127.0.0.1:8000/config_question", data, {
+        headers: { "Content-Type": "application/json" },
       });
-      console.log("Response from backend:", response.data);
-      alert("Form submitted successfully!");
+
+      if (response.status === 200) {
+        navigate("/chat", { state: { role: predefinedRole, topics: selectedTopics } });
+      }
     } catch (error) {
       console.error("Error submitting form:", error);
       alert("Error submitting form. Please try again.");
@@ -53,33 +49,28 @@ function App() {
   };
 
   return (
-    <div className="flex items-center justify-center h-screen bg-gray-100">
-      <div className="w-full max-w-md p-6 bg-white shadow-lg rounded-lg">
-        <h1 className="text-2xl font-bold text-center mb-6">AI Mock Interviewer </h1>
+    <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
+      <div className="w-full max-w-md p-6 bg-gray-800 shadow-lg rounded-lg">
+        <h1 className="text-2xl font-bold text-center mb-6">AI Mock Interviewer</h1>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Role */}
           <div>
-            <label className="block text-gray-700 font-medium mb-2">Role</label>
+            <label className="block text-gray-300 font-medium mb-2">Role</label>
             <input
               type="text"
               value={predefinedRole}
               readOnly
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
+              className="w-full px-4 py-2 border border-gray-600 rounded-lg bg-gray-700 text-white"
             />
           </div>
-
-          {/* Topics */}
           <div>
-            <label className="block text-gray-700 font-medium mb-2">Select Topics</label>
+            <label className="block text-gray-300 font-medium mb-2">Select Topics</label>
             <div className="grid grid-cols-2 gap-3">
               {availableTopics.map((topic) => (
                 <div
                   key={topic}
                   onClick={() => handleTopicClick(topic)}
                   className={`px-4 py-2 border rounded-lg cursor-pointer text-center ${
-                    selectedTopics.includes(topic)
-                      ? "border-green-500 bg-green-50"
-                      : "border-gray-300 hover:border-green-400"
+                    selectedTopics.includes(topic) ? "border-blue-500 bg-blue-700" : "border-gray-600 hover:border-blue-400"
                   }`}
                 >
                   {topic}
@@ -87,11 +78,9 @@ function App() {
               ))}
             </div>
           </div>
-
-          {/* Submit Button */}
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white font-medium py-2 rounded-lg hover:bg-blue-700 transition"
+            className="w-full bg-blue-500 text-white font-medium py-2 rounded-lg hover:bg-blue-600 transition"
           >
             Submit
           </button>
