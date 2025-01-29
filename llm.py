@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 import google.generativeai as genai
 from langchain_google_genai import ChatGoogleGenerativeAI
-
+import random
 
 class LLM_interviewer():
     def __init__(self,Role,Topics):
@@ -13,6 +13,7 @@ class LLM_interviewer():
         self.NTopics = len(Topics)
         self.NQuestions = self.NTQuestions * self.NTopics
         self.LLMQuestions = []
+        self.difficulty = ["Easy","Medium","Hard"]
         self.UserResponses = []
         
     
@@ -88,6 +89,7 @@ class LLM_response(LLM_interviewer):
             )
         
         return prompt
+    
     def llm_qn_generate(self,prompt):
         response = self.model.generate_content(prompt)
         return response.text
@@ -101,6 +103,11 @@ class LLM_response(LLM_interviewer):
             previous_question = self.LLMQuestions[-1]
             answer_to_previous_question = self.UserResponses[-1]
             return previous_question , answer_to_previous_question
+        
+    def level(self):
+        ind = random.randint(0,2)
+        difficulty = self.difficulty[ind]
+        return difficulty
       
 
     

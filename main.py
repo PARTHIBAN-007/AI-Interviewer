@@ -35,18 +35,18 @@ class UserResponse(BaseModel):
 
 @app.post("/llm_question")
 async def llm_question(user_response : UserResponse):
+    llm = LLM_response()
     if user_response.response=="":
-        llm = LLM_response()
         llm.UserResponses.append(user_response.response)
         previous_question , answer_to_previous_answer = llm.responses()
         prompt = llm.llm_intro_prompt_format(previous_question,answer_to_previous_answer)
         response = llm.llm_qn_generate(prompt)
         return response
     elif user_response.response is not None:
-        llm = LLM_response()
         llm.UserResponses.append(user_response.response)
         previous_question , answer_to_previous_answer = llm.responses()
-        prompt = llm.llm_qn_prompt_format(previous_question,answer_to_previous_answer,"ML","Easy")
+        difficulty = llm.level()
+        prompt = llm.llm_qn_prompt_format(previous_question,answer_to_previous_answer,"ML",difficulty)
         response = llm.llm_qn_generate(prompt)
         return response
         
