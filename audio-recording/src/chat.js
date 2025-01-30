@@ -1,97 +1,100 @@
-import React, { useState, useRef } from "react";
-import { useLocation } from "react-router-dom";
-import axios from "axios";
+import { useState } from "react";
 
-function Chat() {
-  const { state } = useLocation();
-  const { role, topics } = state || { role: "Machine Learning Engineer", topics: [] };
-  
-  const [isRecording, setIsRecording] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+export default function ChatApp() {
   const [messages, setMessages] = useState([]);
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
-
-  const startRecording = async () => {
+  const [input, setInput] = useState("");
+  const [iter, setIter] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const fetchMessage = async (responseText, iteration) => {
+    setLoading(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
-      mediaRecorderRef.current.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data);
-      };
-      mediaRecorderRef.current.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" });
-        audioChunksRef.current = [];
-        await sendAudioToBackend(audioBlob);
-      };
-
-      mediaRecorderRef.current.start();
-      setIsRecording(true);
-    } catch (error) {
-      console.error("Error accessing microphone:", error);
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  };
-
-  const sendAudioToBackend = async (audioBlob) => {
-    setIsProcessing(true);
-    const formData = new FormData();
-    formData.append("file", audioBlob, "audio.wav");
-
-    try {
-      const response = await axios.post("http://localhost:8000/upload-audio/", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      const res = await fetch("http://127.0.0.1:8000/llm_question", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ response: responseText, iter: iteration }),
       });
-
-      if (response.data?.text) {
-        setMessages([...messages, { type: "user", text: response.data.text }]);
-      }
+      const data = await res.json();
+      const message = data.response || "No response received";
+      
+      // Add message to chat
+      setMessages((prev) => [...prev, { role: "assistant", text: message }]);
+      setIter(iteration + 1);
+      
+      // Convert text to speech
+      speakText(message);
     } catch (error) {
-      console.error("Error sending audio:", error);
+      console.error("Error fetching message:", error);
     } finally {
-      setIsProcessing(false);
+      setLoading(false);
     }
+  };
+  
+  // Function to play the response as audio
+  const speakText = (text) => {
+    if ("speechSynthesis" in window) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "en-US"; // Set language
+      utterance.rate = 1; // Adjust speed if needed
+      window.speechSynthesis.speak(utterance);
+    } else {
+      console.error("Speech synthesis not supported in this browser.");
+    }
+  };
+  
+  
+  
+  
+
+  const handleStart = () => {
+    setMessages([]);
+    setIter(0);
+    fetchMessage("", 0);
+  };
+
+  const handleSend = () => {
+    if (!input.trim()) return;
+    setMessages((prev) => [...prev, { role: "user", text: input }]);
+    fetchMessage(input, iter);
+    setInput("");
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-900 text-white">
-      <header className="bg-blue-600 text-white p-4 shadow-md">
-        <h2 className="text-2xl font-semibold text-center">Chat Interface</h2>
-        <p className="text-center text-sm">Role: {role} | Topics: {topics.join(", ")}</p>
-      </header>
-      
-      <div className="flex flex-row h-full w-full">
-        <aside className="w-1/4 h-full bg-gray-800 p-6 shadow-lg">
-          <h3 className="text-lg font-medium text-gray-300 mb-2">Your Notes</h3>
-          <textarea className="w-full bg-gray-700 border-gray-600 rounded p-2 h-48" placeholder="Write your notes..."></textarea>
-          <button onClick={isRecording ? stopRecording : startRecording} className="w-full bg-blue-500 text-white py-2 mt-4 rounded-lg">
-            {isRecording ? "Stop Recording" : "Start Recording"}
-          </button>
-        </aside>
-
-        <section className="w-3/4 h-full p-6">
-          <div className="h-full bg-gray-800 rounded-xl p-4 overflow-y-auto">
-            <h2 className="text-2xl font-semibold mb-4">Transcription</h2>
-            <div className="space-y-4">
-              {messages.map((msg, index) => (
-                <div key={index} className={`flex ${msg.type === "user" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-xs px-4 py-2 rounded-lg ${msg.type === "user" ? "bg-blue-600 text-white" : "bg-gray-600"}`}>
-                    {msg.text}
-                  </div>
-                </div>
-              ))}
-            </div>
+    <div className="flex flex-col max-w-md mx-auto p-4 border rounded shadow-md">
+      <button
+        onClick={handleStart}
+        className="bg-blue-500 text-white p-2 rounded mb-4"
+        disabled={loading}
+      >
+        {loading ? "Loading..." : "Start"}
+      </button>
+      <div className="h-64 overflow-y-auto border p-2 mb-2">
+        {messages.map((msg, index) => (
+          <div
+            key={index}
+            className={`p-2 my-1 rounded ${msg.role === "user" ? "bg-gray-200" : "bg-green-200"}`}
+          >
+            {msg.text}
           </div>
-        </section>
+        ))}
+      </div>
+      <div className="flex">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          className="flex-1 border p-2 rounded"
+          placeholder="Type your response..."
+        />
+        <button
+          onClick={handleSend}
+          className="bg-green-500 text-white p-2 rounded ml-2"
+          disabled={loading}
+        >
+          Send
+        </button>
       </div>
     </div>
   );
 }
-
-export default Chat;

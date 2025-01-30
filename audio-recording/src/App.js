@@ -40,6 +40,7 @@ function App() {
       });
 
       if (response.status === 200) {
+        console.log(response);
         navigate("/chat", { state: { role: predefinedRole, topics: selectedTopics } });
       }
     } catch (error) {
