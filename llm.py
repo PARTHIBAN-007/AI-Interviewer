@@ -1,7 +1,6 @@
 import os
 from dotenv import load_dotenv
 import google.generativeai as genai
-from langchain_google_genai import ChatGoogleGenerativeAI
 import random
 load_dotenv()
 
@@ -10,10 +9,10 @@ class LLM_interviewer():
     def __init__(self,Role = "Machine Learning",Topics = ["Linear Regression","Neural Network"]):
         self.role = Role
         self.topics = Topics
-        self.NTQuestions = 2
+        self.NTQuestions = 1
         self.NTopics = len(Topics)
-        self.NQuestions = self.NTQuestions * self.NTopics
-        self.CommunicationQns = 2
+        self.CommunicationQns = 1
+        self.NQuestions = self.NTQuestions * self.NTopics + self.CommunicationQns
         self.LLMQuestions = []
         self.difficulty = ["Easy","Medium","Hard"]
         self.UserResponses = []
@@ -89,6 +88,45 @@ class LLM_interviewer():
         return the response in lowercase format
         '''   
 
+        self.conclusion_prompt = '''
+        You are an AI assistant designed to perform question generation for a mock interview of a {role}.
+        you have completed the interview with the interviewer for that role and on the following topics : {topics}
+        previous_question = {previous_question}
+        answer_to_previous_question = {user_response}
+        Provide a feedback(response) to the previous question as a message to the user about their performance 
+        and their participation in the interview
+        Example Output :
+        response - Strong technical grasp of ML and hypothesis testing, with solid problem-solving skills; work on refining communication and advancing statistical knowledge
+        return the response in lowercase 
+        '''
+
+        self.evaluation_prompt = '''
+        You are an AI Evaluator.you have to evaluate the response of an user to the questions
+        role : {role}
+        topics : {topics}
+        questions : {llm_questions}
+        answers : {user_responses}
+        Ouput Format :
+        answers :
+            -question 
+            -response
+            -accuracy
+            -imporvisedresponse
+            
+            -question 
+            -response
+            -accuracy
+            -imporvisedresponse
+
+
+
+        Example Response :
+        -question : How do you handle class imbalance in a fraud detection model?
+        -response : I would use SMOTE to oversample fraudulent transactions and adjust class weights in the model to focus more on detecting fraud.
+        -accuracy : 85%
+        -imporvisedresponse : To handle class imbalance, I would apply SMOTE to create synthetic samples for fraudulent transactions and adjust the class weights in the model to penalize false negatives more heavily. I’d also experiment with ensemble methods like EasyEnsemble to improve performance. For evaluation, I’d prioritize metrics such as Precision-Recall AUC and F1-score rather than accuracy, as they provide better insight into the model’s ability to detect fraud.
+        '''
+
     def llm_config(self):
         self.model = genai.GenerativeModel(
                 model_name='gemini-1.5-flash',
@@ -120,6 +158,23 @@ class LLM_interviewer():
             difficulty=difficulty
         )
         return prompt
+    def llm_conclusion_prompt_format(self,previous_question,user_response):
+        prompt = self.conclusion_prompt.format(
+            role = self.role,
+            topics = self.topics,
+            previous_question = previous_question,
+            user_response = user_response     
+        )
+        return prompt
+    
+    def evaluator_prompt_format(self):
+        prompt = self.evaluation_prompt.format(
+            role = self.role,
+            topics = self.topics,
+            llm_questions = self.LLMQuestions,
+            user_responses = self.UserResponses
+        )
+        return prompt
 
     
     def llm_qn_generate(self,prompt):
@@ -140,8 +195,10 @@ class LLM_interviewer():
         ind = random.randint(0,2)
         difficulty = self.difficulty[ind]
         return difficulty
+    
     def interview_topic(self,iter):
-        ind = (iter-self.CommunicationQns)%self.NTQuestions
+        ind = (iter-self.CommunicationQns-1)//self.NTQuestions
+        print(iter,self.CommunicationQns , self.NTQuestions , ind ,len(self.topics))
         return self.topics[ind]
       
 
