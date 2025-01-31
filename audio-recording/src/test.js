@@ -4,7 +4,6 @@ import axios from "axios";
 
 function App() {
   const [selectedTopics, setSelectedTopics] = useState([]);
-  const [numQuestions, setNumQuestions] = useState(0); // Track number of questions
   const predefinedRole = "Machine Learning Engineer";
   const navigate = useNavigate();
 
@@ -27,9 +26,7 @@ function App() {
 
   const handleTopicClick = (topic) => {
     setSelectedTopics((prevTopics) =>
-      prevTopics.includes(topic)
-        ? prevTopics.filter((t) => t !== topic)
-        : [...prevTopics, topic]
+      prevTopics.includes(topic) ? prevTopics.filter((t) => t !== topic) : [...prevTopics, topic]
     );
   };
 
@@ -38,22 +35,13 @@ function App() {
     const data = { role: predefinedRole, topics: selectedTopics };
 
     try {
-      // Send the selected topics to the backend to get the number of questions
       const response = await axios.post("http://127.0.0.1:8000/config_question", data, {
         headers: { "Content-Type": "application/json" },
       });
 
       if (response.status === 200) {
-        // Get the number of questions from the backend response
-        const fetchedNumQuestions = response.data.numQuestions;
-        setNumQuestions(fetchedNumQuestions);
-
-        console.log("Fetched numQuestions:", fetchedNumQuestions);
-
-        // Navigate to the chat page and pass topics and numQuestions in the state
-        navigate("/chat", {
-          state: { role: predefinedRole, topics: selectedTopics, numQuestions: fetchedNumQuestions },
-        });
+        console.log(response);
+        navigate("/chat", { state: { role: predefinedRole, topics: selectedTopics } });
       }
     } catch (error) {
       console.error("Error submitting form:", error);
@@ -83,9 +71,7 @@ function App() {
                   key={topic}
                   onClick={() => handleTopicClick(topic)}
                   className={`px-4 py-2 border rounded-lg cursor-pointer text-center ${
-                    selectedTopics.includes(topic)
-                      ? "border-blue-500 bg-blue-700"
-                      : "border-gray-600 hover:border-blue-400"
+                    selectedTopics.includes(topic) ? "border-blue-500 bg-blue-700" : "border-gray-600 hover:border-blue-400"
                   }`}
                 >
                   {topic}
