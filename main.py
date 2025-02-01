@@ -64,26 +64,31 @@ async def llm_question(user_response : UserResponse):
         difficulty = llm_instance.level()
         topic = llm_instance.interview_topic(user_response.iter)
         print(topic)
+        print(previous_question , answer_to_previous_answer)
         prompt = llm_instance.llm_qn_prompt_format(previous_question,answer_to_previous_answer,topic,difficulty)
         response = llm_instance.llm_qn_generate(prompt)
+        llm_instance.LLMQuestions.append(response)
         return JSONResponse(content=json.loads(response))
     else:
-        print("Hello")
         llm_instance.UserResponses.append(user_response.response)
-        print("hello")
         previous_question , answer_to_previous_answer = llm_instance.responses()
-        print("hello")
-
+        print(previous_question , answer_to_previous_answer)
         prompt = llm_instance.llm_conclusion_prompt_format(previous_question,answer_to_previous_answer)
-        print("hello")
         response = llm_instance.llm_qn_generate(prompt)
         print(response)
         return JSONResponse(content=json.loads(response))
-    
+
+class Evaluator(BaseModel):
+    iter : int
+
+
 @app.post("/evaluate_responses")
-async def evaluate_responses():
+async def evaluate_responses(evaluator : Evaluator):
+    print(evaluator.iter)
     prompt = llm_instance.evaluator_prompt_format()
+    print(prompt)
     response = llm_instance.llm_qn_generate(prompt)
+    print(response)
     return JSONResponse(content=json.loads(response))
 
 
@@ -96,35 +101,3 @@ async def evaluate_responses():
 
 
 
-from fastapi import FastAPI, File, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
-import whisper
-import tempfile
-import os
-
-app = FastAPI()
-model = whisper.load_model("base")
-
-# Enable CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # React frontend URL
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-@app.post("/transcribe/")
-async def transcribe_audio(file: UploadFile = File(...)):
-    # Save uploaded file to a temporary file
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_audio:
-        temp_audio.write(await file.read())
-        temp_audio_path = temp_audio.name
-
-    # Transcribe the audio file
-    result = model.transcribe(temp_audio_path)
-    
-    # Delete temporary file
-    os.remove(temp_audio_path)
-
-    return {"transcription": result["text"]}

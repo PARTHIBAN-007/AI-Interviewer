@@ -1,46 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Interviewer</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Speech to Text</title>
 </head>
-<body class="bg-gray-100 font-sans">
-  <div class="flex flex-col h-screen">
-    <!-- Header -->
-    <header class="bg-gray-800 text-white p-4 shadow-md">  <!-- Darker header -->
-      <h2 class="text-3xl font-bold text-center">AI Interviewer</h2>
-    </header>
+<body>
+  
+  <button id="start">Start Listening</button>
+  <button id="stop">Stop Listening</button>
+  <p id="output"></p>
 
-    <!-- Main Content -->
-    <div class="flex flex-row h-full w-full">
-      <!-- First Column (Sidebar) -->
-      <aside class="w-1/4 h-full bg-white p-6 shadow-lg">  <!-- Changed to aside -->
-        <div class="mb-6">  <!-- Space between notes and button -->
-          <h3 class="text-lg font-medium text-gray-600 mb-2">Your Notes</h3>  <!-- Subtle color change -->
-          <textarea class="w-full border border-gray-300 rounded p-2 h-48 resize-y focus:outline-none focus:ring-2 focus:ring-gray-500"></textarea>
-        </div>
-        <button class="w-full bg-gray-800 text-white font-medium py-2 rounded-lg hover:bg-gray-700 transition">Start Recording</button>
-      </aside>
+  <script>
+    // Check if SpeechRecognition is available in the browser
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-      <!-- Second Column (Chat Area) -->
-      <section class="w-3/4 h-full bg-gray-50 p-6">  <!-- Changed to section -->
-        <div class="h-full bg-white shadow-xl rounded-xl p-4 overflow-y-auto">
-          <!-- Chat Template -->
-          <div class="chat-message self-start max-w-xs p-3 bg-gray-800 text-white rounded-lg">
-            Hello! How can I help you?
-          </div>
-          <div class="chat-message self-end max-w-xs p-3 bg-gray-200 text-gray-800 rounded-lg">
-            I have a question about your services.
-          </div>
-          <div class="chat-message self-start max-w-xs p-3 bg-gray-800 text-white rounded-lg">
-            Sure, what do you need to know?
-          </div>
-        </div>
-      </section>
-    </div>
-  </div>
+    if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        let fullTranscript = ''; // Stores the entire transcription
+
+        recognition.onresult = (event) => {
+            let transcript = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                transcript += event.results[i][0].transcript;
+            }
+            fullTranscript += transcript + ' '; // Append new text
+            document.getElementById('output').innerText = fullTranscript;
+        };
+
+        recognition.onerror = (event) => {
+            console.error('Speech Recognition Error:', event.error);
+        };
+
+        document.getElementById('start').addEventListener('click', () => {
+            fullTranscript = ''; // Reset transcript when starting a new session
+            recognition.start();
+            console.log('Speech recognition started...');
+        });
+
+        document.getElementById('stop').addEventListener('click', () => {
+            recognition.stop();
+            console.log('Speech recognition stopped.');
+        });
+
+    } else {
+        console.warn('SpeechRecognition is not supported in this browser.');
+        document.getElementById('output').innerText = "Speech Recognition is not supported in your browser.";
+    }
+  </script>
+
 </body>
 </html>
-

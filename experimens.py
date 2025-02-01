@@ -99,3 +99,36 @@ for topic in question_topics.keys():
     answer_to_previous_questions.append(answers)
 
 
+
+from fastapi import FastAPI, File, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+import whisper
+import tempfile
+import os
+
+app = FastAPI()
+model = whisper.load_model("base")
+
+# Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # React frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.post("/transcribe/")
+async def transcribe_audio(file: UploadFile = File(...)):
+    # Save uploaded file to a temporary file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_audio:
+        temp_audio.write(await file.read())
+        temp_audio_path = temp_audio.name
+
+    # Transcribe the audio file
+    result = model.transcribe(temp_audio_path)
+    
+    # Delete temporary file
+    os.remove(temp_audio_path)
+
+    return {"transcription": result["text"]}

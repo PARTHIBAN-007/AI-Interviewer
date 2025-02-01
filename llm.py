@@ -64,6 +64,7 @@ class LLM_interviewer():
         Example Response :
         response - "I appreciate that, but can you focus a bit more on your experience in machine learning and your recent projects?"
         return the response in lowercase format
+        Ask Only One Question at a time
         ''' 
 
         self.interview_qn_format = '''You are an AI assistant designed to perform question generation for a mock interview of a {role}.
@@ -82,7 +83,7 @@ class LLM_interviewer():
         response -"It seems like there might have been a bit of confusion about the application of linear regression in this context. Let refocus on how you would use linear regression specifically for predicting housing prices.Can you share how you had approach selecting features and what variables you would consider for the model?"    
         Example Output 2 :
         response - "It looks like there may have been a misunderstanding of the question. In linear regression, we typically interpret the coefficients as the impact each predictor has on the target variable.Could you give an example of how you'd interpret a coefficient in the context of a real-world dataset?"
-        Note : Provide First Importance to the Topic
+        Note : 
         Ask Relevant Question to the topic
         Ask Only One Question at a time
         return the response in lowercase format
@@ -112,13 +113,6 @@ class LLM_interviewer():
             -response
             -accuracy
             -imporvisedresponse
-            
-            -question 
-            -response
-            -accuracy
-            -imporvisedresponse
-
-
 
         Example Response :
         -question : How do you handle class imbalance in a fraud detection model?
