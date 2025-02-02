@@ -3,16 +3,24 @@ import { useNavigate, useLocation } from "react-router-dom";
 
 export default function ChatApp() {
   const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
   const [iter, setIter] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [transcribedText, setTranscribedText] = useState("");
+
   const navigate = useNavigate();
   const location = useLocation();
-  const evaluationSent = useRef(false);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
 
-  // Extract data from location state
-  const { topics, numQuestions, role } = location.state || { topics: [], numQuestions: 3, role: "Machine Learning Engineer" };
+  const { topics, numQuestions, role } = location.state || {
+    topics: [],
+    numQuestions: 3,
+    role: "Machine Learning Engineer",
+  };
 
   useEffect(() => {
     if (numQuestions > 0 && topics.length > 0) {
@@ -20,28 +28,31 @@ export default function ChatApp() {
     }
   }, [numQuestions, topics]);
 
+  const capitalizeWords = (text) => {
+    return text.replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
   const fetchMessage = async (responseText, iteration) => {
     setLoading(true);
     try {
       const res = await fetch("http://127.0.0.1:8000/llm_question", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ response: responseText, iter: iteration, topics }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          response: responseText,
+          iter: iteration,
+          topics,
+        }),
       });
-  
       const data = await res.json();
-      const message = data.response || "No response received";
-  
+      const message = capitalizeWords(data.response || "No response received");
       setMessages((prev) => [...prev, { role: "assistant", text: message }]);
       setIter(iteration + 1);
-      console.log(iteration);
-  
-      // Check if iteration matches numQuestions + 1
-      if (iteration === numQuestions+1) {
+      if (iteration === numQuestions + 1) {
         setTimeout(() => navigate("/evaluation_page"), 10000);
       }
-      
-  
       speakText(message);
     } catch (error) {
       console.error("Error fetching message:", error);
@@ -50,7 +61,7 @@ export default function ChatApp() {
       setLoading(false);
     }
   };
-  
+
   const speakText = (text) => {
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
@@ -60,26 +71,87 @@ export default function ChatApp() {
     }
   };
 
-  const handleSend = () => {
-    if (!input.trim()) return;
-    setMessages((prev) => [...prev, { role: "user", text: input }]);
-    fetchMessage(input, iter);
-    setInput("");
+  const startRecording = async () => {
+    setIsRecording(true);
+    audioChunksRef.current = [];
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        setAudioBlob(audioBlob);
+        setIsTranscribing(true);
+        setMessages((prev) => [...prev, { role: "system", text: "Transcribing..." }]);
+        uploadAudio(audioBlob);
+      };
+
+      mediaRecorder.start();
+    } catch (error) {
+      console.error("Error accessing microphone:", error);
+      setError("Microphone access denied or unavailable.");
+      setIsRecording(false);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const uploadAudio = async (audioBlob) => {
+    const formData = new FormData();
+    formData.append("audio", audioBlob, "audio.webm");
+
+    try {
+      const res = await fetch("http://127.0.0.1:8000/audio_to_text", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      let transcribedText = capitalizeWords(data.text);
+      setTranscribedText(transcribedText);
+
+      setMessages((prev) =>
+        prev
+          .filter((msg) => msg.text !== "Transcribing...")
+          .concat({ role: "user", text: transcribedText })
+      );
+
+      setIsTranscribing(false);
+
+      fetchMessage(transcribedText, iter);
+    } catch (error) {
+      console.error("Error uploading audio:", error);
+      setError("There was an issue processing the audio.");
+      setIsTranscribing(false);
+    }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-6">
-      <div className="bg-white shadow-lg rounded-xl p-6 w-full max-w-2xl">
-        <h1 className="text-2xl font-bold text-gray-800 mb-4">Chat Interface</h1>
-
-        {/* Chat Window */}
-        <div className="h-96 overflow-y-auto border border-gray-300 rounded-lg p-4 bg-gray-50">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-10">
+      <div className="bg-white shadow-lg rounded-xl p-8 w-full max-w-5xl">
+        <h1 className="text-2xl font-semibold text-gray-900 mb-6 text-center">Chat Interface</h1>
+        
+        <div className="h-[550px] overflow-y-auto border border-gray-300 rounded-lg p-6 bg-gray-50 w-full">
           {messages.map((msg, index) => (
             <div
               key={index}
-              className={`p-3 my-2 rounded-lg text-sm max-w-xs ${
+              className={`p-4 my-3 rounded-lg text-base font-medium max-w-2xl ${
                 msg.role === "user"
                   ? "bg-blue-500 text-white ml-auto"
+                  : msg.role === "system"
+                  ? "bg-gray-200 text-gray-500 mx-auto italic"
                   : "bg-gray-300 text-gray-800 mr-auto"
               }`}
             >
@@ -88,25 +160,19 @@ export default function ChatApp() {
           ))}
         </div>
 
-        {/* Error Message */}
-        {error && <div className="text-red-600 text-center my-2">{error}</div>}
-
-        {/* Input Area */}
-        <div className="flex items-center mt-4 space-x-4">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Type your message..."
-          />
+        <div className="flex items-center mt-6 space-x-4 justify-center">
           <button
-            onClick={handleSend}
-            className="bg-blue-500 text-white px-5 py-3 rounded-lg hover:bg-blue-600 transition"
-            disabled={loading}
+            onClick={isRecording ? stopRecording : startRecording}
+            className={`px-6 py-3 rounded-lg text-base font-medium transition ${
+              isRecording
+                ? "bg-red-500 text-white"
+                : "bg-green-600 text-white hover:bg-green-700"
+            }`}
           >
-            Send
+            {isRecording ? "Stop Recording" : "Start Recording"}
           </button>
+          {loading && <span className="text-gray-600 text-base">Loading...</span>}
+          {error && <span className="text-red-500 text-base">{error}</span>}
         </div>
       </div>
     </div>

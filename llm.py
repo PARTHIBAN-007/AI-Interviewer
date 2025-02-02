@@ -103,6 +103,7 @@ class LLM_interviewer():
 
         self.evaluation_prompt = '''
         You are an AI Evaluator.you have to evaluate the response of an user to the questions
+        Provide the improvised response from the perspective of an interviewee and provide it in a simple tone.
         role : {role}
         topics : {topics}
         questions : {llm_questions}

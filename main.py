@@ -4,6 +4,7 @@ import io
 import json
 import whisper
 from pydub import AudioSegment
+import speech_recognition as sr
 from pydantic import BaseModel
 from typing import List
 app = FastAPI()
@@ -17,7 +18,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.post("/audio_to_text")
+async def audio_to_text(audio: UploadFile = File(...)):
+    print("audio")
+    try:
+        # Read the audio file
+        audio_data = await audio.read()
 
+        # Convert the audio file into WAV format using pydub
+        audio = AudioSegment.from_file(io.BytesIO(audio_data))
+        audio = audio.set_channels(1).set_frame_rate(16000)  # Convert to mono and 16kHz
+        audio_wav = io.BytesIO()
+        audio.export(audio_wav, format="wav")
+        audio_wav.seek(0)
+
+        # Use SpeechRecognition to convert audio to text
+        recognizer = sr.Recognizer()
+        with sr.AudioFile(audio_wav) as source:
+            audio_recording = recognizer.record(source)
+
+        text = recognizer.recognize_google(audio_recording)
+        return {"text": text}
+
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+    
 from llm import LLM_interviewer 
 llm_instance = None
 class UserPreferences(BaseModel):
